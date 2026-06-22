@@ -76,16 +76,53 @@ python3 scripts/query.py --tag 双一流    # 双一流院校
 | `special_sports` | 特殊类型招生 | 高水平运动队 |
 | `regular` | 本科普通批 | 所有普通本科 |
 
-## 在AI工具中使用
+## 安装
 
-加载 `SKILL.md` 作为系统提示或规则文件：
+### 方式一：AI Agent 对话安装（推荐）
 
-- **Hermes**: `skill_view(name='gaokao-volunteer')`
-- **OpenClaw**: 放入 `~/.openclaw/skills/`
-- **Claude Code**: 放入 `.claude/skills/` 或引用为规则
-- **Cursor/Trae**: 放入 `.cursor/rules/` 或 `.trae/rules/`
+在支持的 AI 工具中，直接对 Agent 说：
 
-然后直接提问：「推荐北京985计算机专业」「物化生580-600分有什么选择」「北航所有专业详情」。
+> 请安装 skill：https://github.com/byteuser1977/gaokao-volunteer.git
+
+Agent 会自动 clone 到对应目录并加载。支持的工具：
+
+| 工具 | 安装方式 | 安装路径 |
+|------|---------|---------|
+| **Hermes** | 对话中提供 URL，Agent 自动安装 | `~/.hermes/skills/gaokao-volunteer/` |
+| **OpenClaw** | 对话中提供 URL，Agent 自动安装 | `~/.openclaw/skills/gaokao-volunteer/` |
+| **Claude Code** | 对话中提供 URL，Agent 自动安装 | `.claude/skills/gaokao-volunteer/` |
+| **Cursor** | 对话中提供 URL，Agent 自动安装 | `.cursor/rules/gaokao-volunteer/` |
+| **Trae** | 对话中提供 URL，Agent 自动安装 | `.trae/rules/gaokao-volunteer/` |
+
+### 方式二：手动 git clone
+
+```bash
+# 通用（仅下载，不绑定AI工具）
+git clone https://github.com/byteuser1977/gaokao-volunteer.git
+
+# Hermes
+git clone https://github.com/byteuser1977/gaokao-volunteer.git ~/.hermes/skills/gaokao-volunteer
+
+# OpenClaw
+git clone https://github.com/byteuser1977/gaokao-volunteer.git ~/.openclaw/skills/gaokao-volunteer
+
+# Claude Code
+git clone https://github.com/byteuser1977/gaokao-volunteer.git .claude/skills/gaokao-volunteer
+
+# Cursor
+git clone https://github.com/byteuser1977/gaokao-volunteer.git .cursor/rules/gaokao-volunteer
+
+# Trae
+git clone https://github.com/byteuser1977/gaokao-volunteer.git .trae/rules/gaokao-volunteer
+```
+
+安装后直接提问：「推荐北京985计算机专业」「物化生580-600分有什么选择」「北航所有专业详情」。
+
+### 更新
+
+```bash
+cd <skill目录> && git pull
+```
 
 ## 数据结构
 
