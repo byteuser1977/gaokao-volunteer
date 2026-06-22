@@ -1,7 +1,7 @@
 ---
 name: gaokao-volunteer
 description: >-
-  高考志愿填报辅助工具。基于北京2026年招生数据（533所院校、3070个专业、985/211/双一流标签、2023-2025分数线位次），
+  高考志愿填报辅助工具。基于北京2026年招生数据（533所院校、968个专业组、21490条专业、985/211/双一流标签、2023-2025分数线位次），
   支持按专业关键词搜索、按院校代号查询、按分数段/标签筛选、物化选科匹配、色弱限制检查。
   适用场景：专业推荐、分数对比、志愿清单生成。
 version: 1.1.0
@@ -13,14 +13,11 @@ version: 1.1.0
 
 ## 数据文件
 
-JSON数据随skill分发，位于 `data/gaokao-2026-beijing.json`（1.2MB）。
-
-在任何AI工具中使用时，先加载数据：
+JSON数据位于 `data/gaokao-2026-beijing.json`（1.2MB）。
 
 ```python
 import json, os
 
-# 自动定位数据文件
 def load_data():
     candidates = [
         os.path.join(os.path.dirname(__file__), 'data', 'gaokao-2026-beijing.json'),
@@ -35,8 +32,7 @@ def load_data():
 
 data = load_data()
 # data.keys() → ['meta', 'schools']
-# data['schools'] → 533所院校
-# data['schools'][0].keys() → ['code','name','location','tags','batches','total_quota','major_groups','score_range']
+# data['schools'] → 533所院校列表
 ```
 
 ## 数据结构速查
@@ -52,25 +48,25 @@ data = load_data()
 | `score_range` | object | 全校分数区间 | `{"2024":{"min":649,"max":667},"2025":{"min":640}}` |
 | `major_groups` | array | 专业组列表 | 见下 |
 
-**major_groups 子结构：**
+**major_groups** 子结构：
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `group_code` | string | 专业组编号，如`"02"` |
-| `subject_requirements` | string | 选考要求，如`"物理+化学(均须选考)"` |
+| `group_code` | string | 专业组编号，如 `"02"` |
+| `subject_requirements` | string | 选考要求，如 `"物理+化学(均须选考)"` |
 | `admission_scores` | object | `{"2024":{"min":667,"min_rank":1552},"2025":{"min":657}}` |
 | `majors` | array | 专业列表 |
 
-**majors 子结构：**
+**majors** 子结构：
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `code` | string | 专业代码(2位) |
-| `name` | string | 专业名称（可能含OCR残留）|
+| `name` | string | 专业名称（可能含OCR残留） |
 | `quota` | int | 招生人数 |
 | `tuition` | int | 学费(元/年) |
-| `duration` | string | 学制，`"四年"`/`"五年"`/`"八年"` |
-| `restrictions` | object/null | 限制条件：`gender`/`vision`/`language`/`physical`/`interview` |
+| `duration` | string | 学制：`"四年"` / `"五年"` / `"八年"` |
+| `restrictions` | object/null | 限制条件：`gender` / `vision` / `language` / `physical` / `interview` |
 | `notes` | string | 备注 |
 
 ## 批次代码
@@ -102,157 +98,71 @@ data = load_data()
 - 性别限制 → 排除标注「只招男生/女生」的不符专业
 - 身高限制 → 排除有身高要求的专业（军事、公安、体育等）
 
-如果会话上下文中已有这些信息（如memory中保存了用户画像），可直接使用无需重复询问。
+若会话上下文中已有考生信息（如memory中保存了用户画像），可直接使用，无需重复询问。
 
-## 用户画像（已知信息）
+## 考生画像（示例，请替换为实际考生信息）
 
-- 2026年北京高考，**585分**，朝阳区**1350名**
-- 选科：**物理、化学、生物**
-- **色弱**：需避开化学/生物/医学类专业（重点关注 `restrictions.vision` 字段）
-- 目标：北航、北理、人大、北邮
+- 2026年北京高考，预估分数段，区排名
+- 选科：物理 / 化学 / 生物
+- 体检情况：色弱 / 色盲 / 正常 / 其他
+- 目标院校：北航、北理、人大、北邮 等
 
-## 查询模式
+## 查询能力
 
-### 按专业关键词搜索
+所有查询函数已实现在 `scripts/query.py` 中，可直接调用或参考其实现逻辑。
 
-```python
-def search_major(keyword, data):
-    results = []
-    for s in data['schools']:
-        for g in s.get('major_groups', []):
-            for m in g.get('majors', []):
-                if keyword in m.get('name', ''):
-                    results.append({
-                        'code': s['code'], 'school': s['name'],
-                        'location': s.get('location',''),
-                        'tags': s.get('tags',[]),
-                        'major': m['name'], 'quota': m['quota'],
-                        'tuition': m['tuition'],
-                        'subject': g.get('subject_requirements',''),
-                        'restrictions': m.get('restrictions'),
-                        'scores': g.get('admission_scores', {}),
-                    })
-    # 排序：北京优先 > 985 > 211 > 分数降序
-    results.sort(key=lambda r: (
-        0 if '北京' in r['location'] else 1,
-        0 if '985' in r['tags'] else 1,
-        0 if '211' in r['tags'] else 1,
-        -(max(r['scores'].get('2025',{}).get('min',0),
-              r['scores'].get('2024',{}).get('min',0)))
-    ))
-    return results
-```
+### 1. 按专业关键词搜索 `search_major(keyword, data)`
 
-### 按院校代号查询
+遍历所有院校的所有专业组，匹配专业名称中包含关键词的记录。返回包含院校代号、名称、所在地、标签、专业名、招生人数、学费、选科要求、限制条件、历年分数线的结果列表。
 
-```python
-def get_school(code, data):
-    return next((s for s in data['schools'] if s['code'] == code), None)
-```
+排序规则：北京优先 → 985 → 211 → 2025/2024最高分降序。
 
-### 按分数段筛选
+### 2. 按院校代号查询 `get_school(code, data)`
 
-```python
-def by_score_range(min_score, max_score, data, year='2025'):
-    results = []
-    for s in data['schools']:
-        sr = s.get('score_range', {}).get(year, {})
-        score = sr.get('min', 0)
-        if min_score <= score <= max_score:
-            results.append(s)
-    results.sort(key=lambda s: -s['score_range'][year]['min'])
-    return results
-```
+通过4位院校代号精确查找院校完整信息，包括所有专业组、专业详情、历年分数线。
 
-### 按标签筛选
+### 3. 按分数段筛选 `by_score_range(lo, hi, data, year='2025')`
 
-```python
-def by_tag(tag, data):  # tag: '985' / '211' / '双一流'
-    return [s for s in data['schools'] if tag in s.get('tags',[])]
-```
+按指定年份的校投档最低分筛选院校，返回分数降序排列的院校列表。
 
-### 色弱限制检查
+### 4. 按标签筛选 `by_tag(tag, data)`
 
-```python
-VISION_KEYWORDS = ['色弱', '色盲', '单色识别', '不招色']
+按 `985` / `211` / `双一流` 标签筛选院校，按2025年最低分降序排列。
 
-def is_vision_restricted(major):
-    """检查专业是否有色觉限制"""
-    name = major.get('name', '')
-    notes = major.get('notes', '')
-    restrictions = major.get('restrictions') or {}
-    text = name + notes + str(restrictions.get('vision', ''))
-    return any(kw in text for kw in VISION_KEYWORDS)
+### 5. 色弱/色盲限制检查 `is_vision_restricted(major)`
 
-def check_vision_for_school(school):
-    """列出某校所有色觉限制专业"""
-    warnings = []
-    for g in school.get('major_groups', []):
-        for m in g.get('majors', []):
-            if is_vision_restricted(m):
-                warnings.append(m['name'])
-    return warnings
-```
+检查专业名称、备注、`restrictions.vision` 字段中是否包含色觉限制关键词（色弱、色盲、单色识别、不招色）。返回 `True` 表示该专业有色觉限制。
 
-### 物化选科匹配
+### 6. 物化选科匹配 `match_physics_chemistry(data)`
 
-```python
-def match_physics_chemistry(data):
-    """筛选所有物理+化学专业"""
-    results = []
-    for s in data['schools']:
-        for g in s.get('major_groups', []):
-            subj = g.get('subject_requirements', '')
-            if '物理' in subj and '化学' in subj:
-                for m in g.get('majors', []):
-                    results.append({
-                        'school': s['name'],
-                        'code': s['code'],
-                        'tags': s.get('tags',[]),
-                        'major': m['name'],
-                        'quota': m['quota'],
-                        'scores': g.get('admission_scores', {})
-                    })
-    return results
-```
+筛选所有要求同时选考物理和化学的专业组，返回匹配的专业列表。
 
 ## 输出格式
 
-查询结果用markdown表格呈现：
+查询结果以 Markdown 表格呈现：
 
 ```
-| 代号 | 院校 | 标签 | 专业 | 人数 | 学费 | 选科 | 2024分 | 2025分 | 备注 |
+| 代号 | 院校 | 标签 | 专业 | 人数 | 学费 | 选科 | 2024分 | 2025分 | 批次 |
 |------|------|------|------|:--:|----:|------|:----:|:----:|------|
 ```
 
-排序规则：北京优先 → 985 → 211 → 双一流 → 分数降序。分数缺失写`—`。色弱风险写`⚠️`。
+排序规则：北京优先 → 985 → 211 → 双一流 → 分数降序。分数缺失写 `—`。色弱风险标注 `⚠️`。
 
 ## 注意事项
 
-1. JSON专业名可能含OCR残留（学费数字混入等），展示时需要清洗
+1. JSON专业名可能含OCR残留（学费数字混入等），展示时需清洗
 2. 分数线是**专业组投档最低分**，非具体专业录取分
 3. 军事院校A段专业通常无公开分数线
 4. 部分院校跨批次招生（如国防科大在A段+普通批），注意区分
 5. 2024年含位次数据（`min_rank`），2023/2025仅分数
 6. 约842条分数线因选科格式差异未能匹配到专业组
-7. **用户色弱**，涉及化学/生物/医学的专业需标注风险
-8. B段双培计划有区名额分配，本数据仅含总计划数
+7. B段双培计划有区名额分配，本数据仅含总计划数
 
 ## 命令行工具
 
 ```bash
-# 搜索材料专业
-python3 scripts/query.py 材料
-
-# 查看北航详情
-python3 scripts/query.py 1047 --school
+python3 scripts/query.py 材料          # 搜索专业
+python3 scripts/query.py 1047 --school # 查看院校详情
+python3 scripts/query.py --score 580 620  # 分数段筛选
+python3 scripts/query.py --tag 985     # 标签筛选
 ```
-
-## 相关文件
-
-| 文件 | 路径 | 说明 |
-|------|------|------|
-| JSON数据 | `data/gaokao-2026-beijing.json` | 主数据文件(1.2MB) |
-| 查询脚本 | `scripts/query.py` | 命令行快速查询 |
-| 材料清单 | `/mnt/d/temp/gaokao/材料类专业报考清单.md` | 材料专业专项报告 |
-| 整理版目录 | `/mnt/d/temp/gaokao/高考志愿填报目录-整理版.md` | 可读版招生目录 |
