@@ -56,3 +56,4 @@ logs/
 # Data files (optional - uncomment if needed)
 # *.json
 # *.csv
+data/ocr_parsed.json
