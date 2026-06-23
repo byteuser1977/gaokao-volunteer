@@ -23,7 +23,7 @@ def find_data():
     raise FileNotFoundError("gaokao-2026-beijing.json not found")
 
 def load():
-    with open(find_data()) as f:
+    with open(find_data(), encoding='utf-8') as f:
         return json.load(f)
 
 def search_major(keyword, data):

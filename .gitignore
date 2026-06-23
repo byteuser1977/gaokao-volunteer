@@ -27,7 +27,10 @@ ENV/
 env/
 
 ./trae/
-./claude/
+./claude/   
+./data/clean/
+./data/formatted/
+
 
 
 # IDE
